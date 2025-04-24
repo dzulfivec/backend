@@ -8,5 +8,4 @@ const pool = mysql.createPool({
   database: "sik"
 });
 
-// AIzaSyDAw_S0MPp1w2XPJnkAvdYJqUQVyNJ7YXg
 module.exports = pool;

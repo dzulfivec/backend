@@ -61,6 +61,22 @@ async function getLabRequestByNoRawat(no_rawat) {
   });
 }
 
+async function getCalledPatient(no_rawat) {
+  const query = `
+    SELECT 
+     * from calledPatient where no_rawat ='${no_rawat}';
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(query, [no_rawat], (err, result) => {
+      if (err) {
+        console.error("Error query lab:", err);
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+}
 router.post("/", async function (req, res) {
   const { tgl_awal, tgl_akhir, search_text } = req.body;
   console.log(tgl_awal, tgl_akhir);
@@ -129,9 +145,11 @@ router.post("/", async function (req, res) {
       dataUsers.map(async (item) => {
         // const updatedName = await aimodel(item.nm_pasien);
         const listLab = await getLabRequestByNoRawat(item.no_rawat);
+        const calledPatient = await getCalledPatient(item.no_rawat);
         return {
           ...item,
           // nama: updatedName,
+          isDone: calledPatient.length > 0 ? "Sudah" : "Belum",
           listLab: listLab,
         };
       })
@@ -141,6 +159,51 @@ router.post("/", async function (req, res) {
 
     console.log("Query sukses:", updatedData.length, "data ditemukan & diubah");
     res.json(updatedData);
+  } catch (error) {
+    console.error("Terjadi kesalahan:", error);
+    res.status(500).send("Gagal mengambil data.");
+  }
+});
+
+router.post("/convert", async function (req, res) {
+  const { text } = req.body;
+  if (!text) {
+    return res.status(400).send("Text wajib diisi.");
+  }
+  try {
+    const updatedData = await aimodel(text);
+    console.log(text, updatedData);
+
+    res.json({ name: updatedData });
+  } catch (error) {
+    console.error("Terjadi kesalahan:", error);
+    res.status(500).send("Gagal mengambil data.");
+  }
+});
+
+router.post("/add-list", async function (req, res) {
+  const { tanggal, no_rawat } = req.body;
+  if (!tanggal || !no_rawat) {
+    return res.status(400).send("Tanggal awal dan akhir wajib diisi.");
+  }
+
+  const stringQuery = `
+    insert into calledPatient values(?,?)
+  `;
+
+  try {
+    const addUsers = await new Promise((resolve, reject) => {
+      pool.query(stringQuery, [no_rawat, tanggal], (error, result) => {
+        if (error) {
+          console.error("Error executing query:", error);
+          return reject(error);
+        }
+        resolve(result);
+      });
+    });
+
+    console.log("data Ditambah");
+    res.json("sukses");
   } catch (error) {
     console.error("Terjadi kesalahan:", error);
     res.status(500).send("Gagal mengambil data.");
